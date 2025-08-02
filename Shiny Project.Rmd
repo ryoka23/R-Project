@@ -256,7 +256,229 @@ shinyApp(ui = ui, server = server)
 
 
 ```
+```{r}
+#view(top_2023)
+names(top_2023)
+```
+```{r}
+# Load packages explicitly
+library(dplyr)
+library(tidyr)
 
+# Now explicitly call dplyr::select() to avoid masking
+top_2023_features <- top_2023 %>%
+  dplyr::select(
+    track_name,
+    bpm,
+    `danceability_.`,
+    `speechiness_.`,
+    `energy_.`,
+    `acousticness_.`
+  ) %>%
+  pivot_longer(cols = -track_name, names_to = "feature", values_to = "value")
+```
+
+```{r}
+# Step 2: Create circular barplot
+ggplot(top_2023_features, aes(x = feature, y = value, fill = track_name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_polar() +
+  labs(title = "Audio Feature Metrics for Top 5 Songs in 2023",
+       x = "",
+       y = "",
+       fill = "Track Name") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(size = 12, face = "bold"))
+```
+```{r}
+yearly_top3_songs <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 3, with_ties = TRUE) %>%
+  ungroup()
+
+#View(yearly_top3_songs)
+```
+```{r}
+# Filter for 2023 top 3 songs from your previously filtered data
+top3_2023 <- yearly_top3_songs %>%
+  filter(released_year == 2023)
+```
+```{r}
+# Now explicitly call dplyr::select() to avoid masking
+top3_2023_features <- top3_2023 %>%
+  dplyr::select(
+    track_name,
+    bpm,
+    `danceability_.`,
+    `speechiness_.`,
+    `energy_.`,
+    `acousticness_.`
+  ) %>%
+  pivot_longer(cols = -track_name, names_to = "feature", values_to = "value")
+```
+
+```{r}
+# Step 2: Create circular barplot
+ggplot(top3_2023_features, aes(x = feature, y = value, fill = track_name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_polar() +
+  labs(title = "Audio Feature Metrics for Top 5 Songs in 2023",
+       x = "",
+       y = "",
+       fill = "Track Name") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(size = 12, face = "bold"))
+```
+
+
+```{r}
+# Load clean libraries (force reloading if needed)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(fmsb)
+library(scales)
+```
+```{r}
+# Clean column names using backticks explicitly
+top_2023_clean <- top_2023 %>%
+  dplyr::rename(
+    danceability = `danceability_.`,
+    speechiness = `speechiness_.`,
+    energy = `energy_.`,
+    acousticness = `acousticness_.`
+  )
+
+# Select only relevant columns
+radar_data <- dplyr::select(top_2023_clean, track_name, bpm, danceability, speechiness, energy, acousticness)
+
+# Normalize the metrics to range [0, 1]
+radar_data_norm <- radar_data %>%
+  mutate(across(where(is.numeric) & !track_name, ~ scales::rescale(.x, to = c(0, 1))))
+```
+```{r}
+# Create max and min rows for required radar structure
+max_min <- data.frame(
+  bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+  row.names = c("Max")
+) %>%
+  bind_rows(data.frame(
+    bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+    row.names = c("Min")
+  ))
+
+# Add the song data with rownames as song titles
+radar_matrix <- bind_rows(
+  max_min,
+  radar_data_norm %>% column_to_rownames("track_name")
+)
+```
+
+```{r}
+# Assign colors per song
+colors_border <- rainbow(nrow(radar_matrix) - 2)
+colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+
+# Plot
+fmsb::radarchart(
+  radar_matrix,
+  axistype = 1,
+  pcol = colors_border,
+  pfcol = colors_in,
+  plwd = 2,
+  plty = 1,
+  cglcol = "grey",
+  cglty = 1,
+  axislabcol = "grey",
+  caxislabels = seq(0, 1, 0.2),
+  cglwd = 0.8,
+  vlcex = 0.9,
+  title = "Top 5 Songs in 2023 — Audio Features Radar Chart"
+)
+
+legend(
+  "topright",
+  legend = rownames(radar_matrix)[-c(1, 2)],
+  bty = "n",
+  pch = 20,
+  col = colors_border,
+  text.col = "black",
+  cex = 0.8
+)
+```
+```{r}
+# Clean column names using backticks explicitly
+top3_2023_clean <- top3_2023 %>%
+  dplyr::rename(
+    danceability = `danceability_.`,
+    speechiness = `speechiness_.`,
+    energy = `energy_.`,
+    acousticness = `acousticness_.`
+  )
+
+# Select only relevant columns
+radar_data3 <- dplyr::select(top3_2023_clean, track_name, bpm, danceability, speechiness, energy, acousticness)
+
+# Normalize the metrics to range [0, 1]
+radar_data_norm3 <- radar_data3 %>%
+  mutate(across(where(is.numeric) & !track_name, ~ scales::rescale(.x, to = c(0, 1))))
+```
+```{r}
+# Create max and min rows for required radar structure
+max_min3 <- data.frame(
+  bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+  row.names = c("Max")
+) %>%
+  bind_rows(data.frame(
+    bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+    row.names = c("Min")
+  ))
+
+# Add the song data with rownames as song titles
+radar_matrix3 <- bind_rows(
+  max_min3,
+  radar_data_norm3 %>% column_to_rownames("track_name")
+)
+```
+
+```{r}
+# Assign colors per song
+colors_border <- rainbow(nrow(radar_matrix) - 2)
+colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+
+# Plot
+fmsb::radarchart(
+  radar_matrix3,
+  axistype = 1,
+  pcol = colors_border,
+  pfcol = colors_in,
+  plwd = 2,
+  plty = 1,
+  cglcol = "grey",
+  cglty = 1,
+  axislabcol = "grey",
+  caxislabels = seq(0, 1, 0.2),
+  cglwd = 0.8,
+  vlcex = 0.9,
+  title = "Top 3 Songs in 2023 — Audio Features Radar Chart"
+)
+
+legend(
+  "topright",
+  legend = rownames(radar_matrix3)[-c(1, 2)],
+  bty = "n",
+  pch = 20,
+  col = colors_border,
+  text.col = "black",
+  cex = 0.8
+)
+```
 
 ```{r}
 # Select only numeric columns
@@ -646,5 +868,84 @@ plot(lm_model)
 ```
 ```{r}
 plot(lm_model, which = 5) 
+```
+```{r}
+# Calculate Cook's Distance
+cooksD <- cooks.distance(lm_model)
+
+# Set a common threshold (4 / n)
+threshold <- 4 / nrow(data_complete)
+
+# Find influential points
+influential_points <- which(cooksD > threshold)
+ 
+influential_points
+```
+```{r}
+# Create a new dataset excluding influential rows
+data_no_influential <- data_complete[-influential_points, ]
+data_no_influential
+```
+```{r}
+# Refit the model using caret with cross-validation
+cv_model_clean <- train(
+  model_formula,
+  data = data_no_influential,
+  method = "lm",
+  trControl = trainControl(method = "cv", number = 10)
+)
+```
+```{r}
+cv_model$results  # Original model
+cv_model_clean$results  # Model without influential points
+```
+```{r}
+model_full <- lm(model_formula, data = data_complete)
+model_reduced <- lm(model_formula, data = data_no_influential)
+
+AIC(model_full, model_reduced)
+BIC(model_full, model_reduced)
+```
+```{r}
+# First, ensure that you have your predictions with intervals set up properly
+
+# Extract the linear model from caret's train object
+lm_model_clean <- cv_model_clean$finalModel
+
+# Generate predictions with both confidence and prediction intervals
+pred_conf_clean <- predict(lm_model_clean, newdata = data_no_influential, interval = "confidence")
+pred_pred_clean <- predict(lm_model_clean, newdata = data_no_influential, interval = "prediction")
+
+# Combine everything into a data frame
+plot_data_clean <- data_no_influential %>%
+  mutate(
+    predicted_streams = pred_conf_clean[, "fit"],
+    conf_low = pred_conf_clean[, "lwr"],
+    conf_high = pred_conf_clean[, "upr"],
+    pred_low = pred_pred_clean[, "lwr"],
+    pred_high = pred_pred_clean[, "upr"]
+  ) %>%
+  arrange(streams)  # sort by actual streams for smooth ribbons
+```
+
+
+```{r}
+# Plot with confidence and prediction intervals as lines (no shaded ribbons)
+ggplot(plot_data_clean, aes(x = predicted_streams, y = streams)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
+  geom_line(aes(y = conf_low), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = conf_high), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
+  geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
+  labs(
+    title = "Actual vs Predicted Streams with Confidence and Prediction Interval Lines",
+    x = "Predicted Streams",
+    y = "Actual Streams"
+  ) +
+  theme_minimal()
+```
+```{r}
+
 ```
 
