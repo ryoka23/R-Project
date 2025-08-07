@@ -1,0 +1,1345 @@
+---
+title: "R Project"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*.
+
+```{r}
+spotify <- read.csv("Popular_Spotify_Songs.csv")
+head(spotify)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+spotify <- read.csv("Popular_Spotify_Songs.csv")
+head(spotify)
+```
+
+```{r}
+#spotify[cols_to_convert] <- lapply(spotify[cols_to_convert], function(x) as.numeric(as.character(x)))
+
+spotify$streams <- as.numeric(spotify$streams)
+spotify$in_deezer_playlists = as.numeric(spotify$in_deezer_playlists)
+spotify$in_shazam_charts = as.numeric(spotify$in_shazam_charts)
+str(spotify[, 3:14])
+```
+
+```{r}
+pairs(spotify[, 3:14], main = "Linear Relationships Between Metrics")
+```
+
+```{r}
+# Select only the relevant columns
+selected_data <- spotify[, c("streams", "in_spotify_playlists", "in_deezer_playlists", "in_apple_playlists")]
+
+# Create the pairs plot
+pairs(selected_data, main = "Pairs Plot of Playlist Counts and Streams")
+
+```
+
+```{r}
+
+```
+
+```{r}
+colSums(is.na(spotify))
+dim(spotify)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(spotify, aes(x = released_year)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "white") +
+  labs(title = "Distribution of Streams", x = names(spotify$released_year))
+
+plot(density(spotify$released_year, na.rm = TRUE), main = "Density Plot of Released Year", xlab = "Released Year", col = "blue", lwd = 2)
+```
+
+```{r}
+View(spotify)
+```
+
+```{r}
+# Basic scatter plot with color based on 'mode'
+ggplot(spotify, aes(x = streams, y = in_spotify_playlists, color = mode)) +
+  geom_point() +
+  labs(title = "Streams vs Playlist Metrics by Mode",
+       x = "Streams",
+       y = "Number in Spotify Playlists") +
+  theme_minimal()
+```
+
+```{r}
+library(shiny)
+library(ggplot2)
+
+# UI
+ui <- fluidPage(
+  titlePanel("Streams vs Spotify Playlists by Mode"),
+  sidebarLayout(
+    sidebarPanel(
+      checkboxGroupInput("mode_select", "Select Mode(s):",
+                         choices = unique(spotify$mode),
+                         selected = unique(spotify$mode))
+    ),
+    mainPanel(
+      plotOutput("scatterPlot")
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  output$scatterPlot <- renderPlot({
+    filtered_data <- spotify[spotify$mode %in% input$mode_select, ]
+
+    ggplot(filtered_data, aes(x = streams, y = in_spotify_playlists, color = mode)) +
+      geom_point() +
+      labs(
+        title = "Streams vs Playlist Metrics by Mode",
+        x = "Streams",
+        y = "Number in Spotify Playlists"
+      ) +
+      theme_minimal()
+  })
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
+
+
+```
+
+```{r}
+library(dplyr)
+# Create a combined label of Song + Artist
+spotify <- spotify %>%
+  mutate(song.artist = paste(track_name, "-", artist.s._name))
+view(spotify)
+```
+
+```{r}
+yearly_top_song <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 1, with_ties = TRUE) %>%
+  ungroup()
+
+# Step 1: Get the top 10 songs by total streams
+top10_yearly <- yearly_top_song %>% 
+  arrange(desc(streams)) %>% 
+  slice(1:10)
+
+top10_yearly
+```
+
+```{r}
+
+# Convert song_artist to factor with levels ordered by Streams
+top10_yearly <- top10_yearly %>%
+  arrange(desc(streams)) %>%
+  mutate(song.artist = factor(song.artist, levels = unique(song.artist)))
+top10_yearly
+```
+
+```{r}
+ggplot(top10_yearly, aes(x = released_year, y = streams, fill = factor(song.artist))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top Streamed Songs per Year",
+       x = "Track (Song - Artist)",
+       y = "Number of Streams",
+       fill = "Year") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+ggplot(top10_yearly, aes(x = factor(released_year), y = streams, fill = song.artist)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 10 Streamed Songs By Year",
+       x = "Year",
+       y = "Number of Streams",
+       fill = "Song - Artist") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+yearly_top_songs <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 5, with_ties = TRUE) %>%
+  ungroup()
+
+View(yearly_top_songs)
+```
+
+```{r}
+# Filter for 2023 top 5 songs from your previously filtered data
+top_2023 <- yearly_top_songs %>%
+  filter(released_year == 2023)
+
+# Create the bar chart
+ggplot(top_2023, aes(x = reorder(track_name, -streams), y = streams, fill = song.artist)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 5 Streamed Songs in 2023",
+       x = "Song",
+       y = "Number of Streams",
+       fill = "Song & Artist") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Check how many rows are in the dataset for 2022
+dim(yearly_top_songs[yearly_top_songs$released_year == 2022, ])
+
+# Check for NA or invalid values in 2022
+summary(yearly_top_songs[yearly_top_songs$released_year == 2022, ])
+
+# Alternatively, print it to inspect
+print(yearly_top_songs[yearly_top_songs$released_year == 2022, ])
+```
+
+```{r}
+# Look at 2022 data closely
+spotify %>%
+  filter(released_year == 2022) %>%
+  select(track_name, artist.s._name, streams) %>%
+  glimpse()
+
+# Count unique songs to see if there's a tie issue
+yearly_top_songs %>%
+  filter(released_year == 2022) %>%
+  count(track_name)
+
+# Check for NAs in streams or grouping variables
+yearly_top_songs %>%
+  filter(released_year == 2022) %>%
+  summarise(
+    missing_streams = sum(is.na(streams)),
+    missing_track = sum(is.na(track_name)),
+    missing_artist = sum(is.na(song.artist)))
+```
+
+```{r}
+# Shiny app to view top streamed songs by year with a toggle
+library(shiny)
+library(dplyr)
+library(ggplot2)
+
+# UI
+ui <- fluidPage(
+  titlePanel("Top Streamed Songs by Year"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("year", "Select Year:", choices = sort(unique(yearly_top_songs$released_year)))
+    ),
+    mainPanel(
+      plotOutput("topSongsPlot")
+    )
+  )
+)
+
+# Server
+server <- function(input, output, session) {
+  
+  output$topSongsPlot <- renderPlot({
+    selected_year_data <- yearly_top_songs %>% 
+      filter(released_year == input$year)
+
+    # Ensure no invalid characters or encoding issues in track names
+    selected_year_data$track_name <- iconv(selected_year_data$track_name, from = "UTF-8", to = "UTF-8", sub = "*")
+
+    ggplot(selected_year_data, aes(x = reorder(track_name, -streams), y = streams, fill = song.artist)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Top 5 Streamed Songs in", input$year),
+           x = "Song",
+           y = "Number of Streams",
+           fill = "Song & Artist") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+}
+
+# Run app
+shinyApp(ui = ui, server = server)
+
+
+```
+
+```{r}
+view(top_2023)
+names(top_2023)
+```
+
+```{r}
+# Load packages explicitly
+library(dplyr)
+library(tidyr)
+
+# Now explicitly call dplyr::select() to avoid masking
+top_2023_features <- top_2023 %>%
+  dplyr::select(
+    song.artist,
+    bpm,
+    `danceability_.`,
+    `speechiness_.`,
+    `energy_.`,
+    `acousticness_.`
+  ) %>%
+  pivot_longer(cols = -song.artist, names_to = "feature", values_to = "value")
+```
+
+```{r}
+# Step 2: Create circular barplot
+ggplot(top_2023_features, aes(x = feature, y = value, fill = song.artist)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_polar() +
+  labs(title = "Audio Feature Metrics for Top 5 Songs in 2023",
+       x = "",
+       y = "",
+       fill = "Song - Artist") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(size = 12, face = "bold"))
+```
+
+```{r}
+yearly_top3_songs <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 3, with_ties = TRUE) %>%
+  ungroup()
+
+View(yearly_top3_songs)
+```
+
+```{r}
+# Filter for 2023 top 3 songs from your previously filtered data
+top3_2023 <- yearly_top3_songs %>%
+  filter(released_year == 2023)
+```
+
+```{r}
+# Now explicitly call dplyr::select() to avoid masking
+top3_2023_features <- top3_2023 %>%
+  dplyr::select(
+    song.artist,
+    bpm,
+    `danceability_.`,
+    `speechiness_.`,
+    `energy_.`,
+    `acousticness_.`
+  ) %>%
+  pivot_longer(cols = -song.artist, names_to = "feature", values_to = "value")
+```
+
+```{r}
+# Step 2: Create circular barplot
+ggplot(top3_2023_features, aes(x = feature, y = value, fill = song.artist)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_polar() +
+  labs(title = "Audio Feature Metrics for Top 5 Songs in 2023",
+       x = "",
+       y = "",
+       fill = "Track Name") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(size = 12, face = "bold"))
+```
+
+```{r}
+# Load clean libraries (force reloading if needed)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(fmsb)
+library(scales)
+```
+
+```{r}
+# Clean column names using backticks explicitly
+top_2023_clean <- top_2023 %>%
+  dplyr::rename(
+    danceability = `danceability_.`,
+    speechiness = `speechiness_.`,
+    energy = `energy_.`,
+    acousticness = `acousticness_.`
+  )
+
+# Select only relevant columns
+radar_data <- dplyr::select(top_2023_clean, song.artist, bpm, danceability, speechiness, energy, acousticness)
+
+# Normalize the metrics to range [0, 1]
+radar_data_norm <- radar_data %>%
+  mutate(across(where(is.numeric) & !song.artist, ~ scales::rescale(.x, to = c(0, 1))))
+```
+
+```{r}
+# Create max and min rows for required radar structure
+max_min <- data.frame(
+  bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+  row.names = c("Max")
+) %>%
+  bind_rows(data.frame(
+    bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+    row.names = c("Min")
+  ))
+
+# Add the song data with rownames as song titles
+radar_matrix <- bind_rows(
+  max_min,
+  radar_data_norm %>% column_to_rownames("song.artist")
+)
+```
+
+```{r}
+# Assign colors per song
+colors_border <- rainbow(nrow(radar_matrix) - 2)
+colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+
+# Plot
+fmsb::radarchart(
+  radar_matrix,
+  axistype = 1,
+  pcol = colors_border,
+  pfcol = colors_in,
+  plwd = 2,
+  plty = 1,
+  cglcol = "grey",
+  cglty = 1,
+  axislabcol = "grey",
+  caxislabels = seq(0, 1, 0.2),
+  cglwd = 0.8,
+  vlcex = 0.9,
+  title = "Top 5 Songs in 2023 — Audio Features Radar Chart"
+)
+
+legend(
+  "topright",
+  legend = rownames(radar_matrix)[-c(1, 2)],
+  bty = "n",
+  pch = 20,
+  col = colors_border,
+  text.col = "black",
+  cex = 0.8
+)
+```
+
+```{r}
+
+```
+
+```{r}
+# Clean column names using backticks explicitly
+top3_2023_clean <- top3_2023 %>%
+  dplyr::rename(
+    danceability = `danceability_.`,
+    speechiness = `speechiness_.`,
+    energy = `energy_.`,
+    acousticness = `acousticness_.`
+  )
+
+# Select only relevant columns
+radar_data3 <- dplyr::select(top3_2023_clean, song.artist, bpm, danceability, speechiness, energy, acousticness)
+
+# Normalize the metrics to range [0, 1]
+radar_data_norm3 <- radar_data3 %>%
+  mutate(across(where(is.numeric) & !song.artist, ~ scales::rescale(.x, to = c(0, 1))))
+```
+
+```{r}
+# Create max and min rows for required radar structure
+max_min3 <- data.frame(
+  bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+  row.names = c("Max")
+) %>%
+  bind_rows(data.frame(
+    bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+    row.names = c("Min")
+  ))
+
+# Add the song data with rownames as song titles
+radar_matrix3 <- bind_rows(
+  max_min3,
+  radar_data_norm3 %>% column_to_rownames("song.artist")
+)
+```
+
+```{r}
+# Assign colors per song
+colors_border <- rainbow(nrow(radar_matrix) - 2)
+colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+
+# Plot
+fmsb::radarchart(
+  radar_matrix3,
+  axistype = 1,
+  pcol = colors_border,
+  pfcol = colors_in,
+  plwd = 2,
+  plty = 1,
+  cglcol = "grey",
+  cglty = 1,
+  axislabcol = "grey",
+  caxislabels = seq(0, 1, 0.2),
+  cglwd = 0.8,
+  vlcex = 0.9,
+  title = "Top 3 Songs in 2023 — Audio Features Radar Chart"
+)
+
+legend(
+  "topright",
+  legend = rownames(radar_matrix3)[-c(1, 2)],
+  bty = "n",
+  pch = 20,
+  col = colors_border,
+  text.col = "black",
+  cex = 0.8,
+  inset = c(-0.1, 0) # Moves the legend to the right (negative x-inset)
+)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(fmsb)
+library(scales)
+library(shiny)
+```
+
+```{r}
+# UI ----
+ui <- fluidPage(
+  titlePanel("Radar Chart of Top 3 Spotify Songs by Year"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_year", "Choose a Year:",
+                  choices = NULL)
+    ),
+    
+    mainPanel(
+      plotOutput("radarPlot")
+    )
+  )
+)
+
+# Server ----
+server <- function(input, output, session) {
+  
+  # Populate dropdown with available years
+  observe({
+    updateSelectInput(session, "selected_year",
+                      choices = sort(unique(spotify$released_year), decreasing = TRUE),
+                      selected = max(spotify$released_year, na.rm = TRUE))
+  })
+  
+  # Reactive: create radar matrix for selected year
+  radar_matrix3 <- reactive({
+    req(input$selected_year)
+    
+    # Top 3 songs for selected year
+    top3_year <- spotify %>%
+      filter(released_year == input$selected_year) %>%
+      slice_max(order_by = streams, n = 3, with_ties = FALSE) %>%
+      dplyr::rename(
+        danceability = `danceability_.`,
+        speechiness = `speechiness_.`,
+        energy = `energy_.`,
+        acousticness = `acousticness_.`
+      ) %>%
+      dplyr::select(song.artist, bpm, danceability, speechiness, energy, acousticness)
+    
+    # Normalize numeric columns to 0–1
+    radar_data_norm3 <- top3_year %>%
+      mutate(across(where(is.numeric), ~ scales::rescale(.x, to = c(0, 1))))
+    
+    if (nrow(radar_data_norm3) < 1) return(NULL)
+    
+    # Create max/min rows
+    max_min3 <- data.frame(
+      bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+      row.names = c("Max")
+    ) %>%
+      bind_rows(data.frame(
+        bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+        row.names = c("Min")
+      ))
+    
+    # Bind normalized data, set rownames to song.artist
+    final_matrix <- bind_rows(
+      max_min3,
+      radar_data_norm3 %>% column_to_rownames("song.artist")
+    )
+    
+    return(final_matrix)
+  })
+  
+  # Plot output ----
+output$radarPlot <- renderPlot({
+  matrix <- radar_matrix3()
+  req(matrix)
+
+  # Colors
+  colors_border <- rainbow(nrow(matrix) - 2)
+  colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+
+  # Set up a two-row layout: chart on top, legend below
+  layout(matrix(c(1, 2), nrow = 2), heights = c(4, 1))  # Top: 4x height, Bottom: 1x height
+
+  # Top: Radar Chart
+  par(mar = c(2, 2, 4, 2))  # reasonable margins
+  fmsb::radarchart(
+    matrix,
+    axistype = 1,
+    pcol = colors_border,
+    pfcol = colors_in,
+    plwd = 2,
+    plty = 1,
+    cglcol = "grey",
+    cglty = 1,
+    axislabcol = "grey",
+    caxislabels = seq(0, 1, 0.2),
+    cglwd = 0.8,
+    vlcex = 0.9,
+    title = paste("Top 3 Songs in", input$selected_year, "— Audio Features Radar Chart")
+  )
+
+  # Bottom: Legend
+  par(mar = c(0, 0, 0, 0))  # no margins
+  plot.new()
+  legend(
+    "center",
+    legend = rownames(matrix)[-c(1, 2)],
+    bty = "n",
+    pch = 20,
+    col = colors_border,
+    text.col = "black",
+    cex = 0.9,
+    ncol = 1,  # You can change to 2+ if you want columns
+    xpd = TRUE
+  )
+})
+}
+# Run the app ----
+shinyApp(ui, server)
+
+```
+
+```{r}
+
+```
+
+```{r}
+# Select only numeric columns
+numeric_cols <- spotify %>%
+  select(where(is.numeric))
+
+numeric_cols
+```
+
+```{r}
+# Calculate correlation of all numeric columns with 'streams'
+correlations <- cor(numeric_cols, use = "complete.obs")
+correlations
+```
+
+```{r}
+# Extract just the correlations with 'streams'
+cor_with_streams <- correlations["streams", ]
+cor_with_streams
+```
+
+```{r}
+# Sort and view
+sort(cor_with_streams, decreasing = TRUE)
+
+```
+
+```{r}
+model <- lm(streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists + danceability_. + energy_. + valence_., data = spotify)
+summary(model)
+```
+
+```{r}
+# Refitting the model with only significant predictors
+refined_model <- lm(streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists, data = spotify)
+
+# Summary of the refined model
+summary(refined_model)
+```
+
+```{r}
+# Refit the model with complete cases only
+data_complete <- spotify %>%
+  select(streams, in_spotify_playlists, in_deezer_playlists, in_apple_playlists) %>%
+  na.omit()
+
+model <- lm(streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists, data = data_complete)
+
+# Add predictions to the complete data
+
+# Predict streams
+predicted_streams <- predict(model, newdata = data_complete)
+
+# Add predictions to the data frame
+data_complete$predicted_streams <- predicted_streams
+data_complete
+```
+
+```{r}
+# Plot actual vs predicted
+ggplot(data_complete, aes(x = streams, y = predicted_streams)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(title = "Actual vs Predicted Streams",
+       x = "Actual Streams",
+       y = "Predicted Streams") +
+  theme_minimal()
+```
+
+```{r}
+# Plot residuals
+residuals <- model$residuals
+View(data_complete)
+
+ggplot(data_complete, aes(x = predicted_streams, y = residuals)) +
+  geom_point(alpha = 0.6, color = "darkorange") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residual Plot",
+       x = "Predicted Streams",
+       y = "Residuals") +
+  theme_minimal()
+
+```
+
+```{r}
+# Step 1: Load required libraries
+library(caret)
+
+# Step 2: Set seed for reproducibility
+set.seed(123)
+
+# Step 3: Define training control for 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Step 4: Define the model formula (same predictors as before)
+model_formula <- streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists
+
+# Step 5: Fit the linear regression model using caret::train()
+cv_model <- train(
+  model_formula,
+  data = data_complete,
+  method = "lm",
+  trControl = train_control
+)
+
+# Step 6: Review cross-validation results
+print(cv_model)
+
+# Optional: Plot predictions vs. actuals again using cv_model$finalModel if desired
+
+```
+
+```{r}
+# Fit the final model on full data
+final_model <- train(
+  streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists,
+  data = data_complete,
+  method = "lm"
+)
+
+# View final coefficients
+coef(final_model$finalModel)
+
+```
+
+```{r}
+#Create a new data frame with predictor values
+# Replace these numbers with your actual input values
+new_input <- data.frame(
+  in_spotify_playlists = 2500,
+  in_deezer_playlists = 50,
+  in_apple_playlists = 250
+)
+
+# 3. Predict streams based on new inputs
+predicted_streams <- predict(cv_model, newdata = new_input)
+
+# View prediction
+predicted_streams
+
+```
+
+```{r}
+# Load required packages
+library(shiny)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Predict Song Streams"),
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
+      numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
+      numericInput("apple", "Apple Playlists:", value = 2000, min = 0),
+      actionButton("predict", "Predict Streams")
+    ),
+    mainPanel(
+      h3("Predicted Streams:"),
+      verbatimTextOutput("prediction")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+
+  # Reactive prediction
+  observeEvent(input$predict, {
+    new_input <- data.frame(
+      in_spotify_playlists = input$spotify,
+      in_deezer_playlists = input$deezer,
+      in_apple_playlists = input$apple
+    )
+
+    predicted <- predict(cv_model, newdata = new_input)
+
+    output$prediction <- renderText({
+      format(round(predicted, 0), big.mark = ",")
+    })
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+```
+
+```{r}
+?cv_model
+cv_model
+```
+
+```{r}
+# Assume `final_model` is already trained with lm()
+colSums(is.na(data_complete))
+```
+
+```{r}
+
+```
+
+```{r}
+# Then you need to extract the final linear model from the `train` object
+# before using it for prediction with confidence and prediction intervals
+
+lm_model <- cv_model$finalModel
+
+# Now you can safely use predict with interval = "confidence" and "prediction"
+pred_conf <- predict(lm_model, newdata = data_complete, interval = "confidence")
+pred_pred <- predict(lm_model, newdata = data_complete, interval = "prediction")
+
+# Combine everything into a data frame
+plot_data <- data_complete %>%
+  mutate(
+    predicted_streams = pred_conf[, "fit"],
+    conf_low = pred_conf[, "lwr"],
+    conf_high = pred_conf[, "upr"],
+    pred_low = pred_pred[, "lwr"],
+    pred_high = pred_pred[, "upr"]
+  )
+
+# Plot
+ggplot(plot_data, aes(x = streams, y = predicted_streams)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") +
+  geom_ribbon(aes(ymin = conf_low, ymax = conf_high), fill = "lightblue", alpha = 0.3) +
+  geom_ribbon(aes(ymin = pred_low, ymax = pred_high), fill = "orange", alpha = 0.2) +
+  labs(
+    title = "Predicted vs Actual Streams with Confidence and Prediction Intervals",
+    x = "Actual Streams",
+    y = "Predicted Streams"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+# First, ensure that you have your predictions with intervals set up properly
+
+# Extract the linear model from caret's train object
+lm_model <- cv_model$finalModel
+
+# Generate predictions with both confidence and prediction intervals
+pred_conf <- predict(lm_model, newdata = data_complete, interval = "confidence")
+pred_pred <- predict(lm_model, newdata = data_complete, interval = "prediction")
+
+# Combine everything into a data frame
+plot_data <- data_complete %>%
+  mutate(
+    predicted_streams = pred_conf[, "fit"],
+    conf_low = pred_conf[, "lwr"],
+    conf_high = pred_conf[, "upr"],
+    pred_low = pred_pred[, "lwr"],
+    pred_high = pred_pred[, "upr"]
+  ) %>%
+  arrange(streams)  # sort by actual streams for smooth ribbons
+```
+
+```{r}
+# Plot with ggplot2
+ggplot(plot_data, aes(x = predicted_streams, y = streams)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") +
+  geom_ribbon(aes(ymin = conf_low, ymax = conf_high), fill = "lightblue", alpha = 0.3) +
+  geom_ribbon(aes(ymin = pred_low, ymax = pred_high), fill = "orange", alpha = 0.2) +
+  labs(
+    title = "Predicted vs Actual Streams with Confidence and Prediction Intervals",
+    x = "Predicted Streams",
+    y = "Actual Streams"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Plot with confidence and prediction intervals as lines (no shaded ribbons)
+ggplot(plot_data, aes(x = predicted_streams, y = streams)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
+  geom_line(aes(y = conf_low), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = conf_high), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
+  geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
+  labs(
+    title = "Actual vs Predicted Streams with Confidence and Prediction Interval Lines",
+    x = "Predicted Streams",
+    y = "Actual Streams"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(x = in_spotify_playlists, y = streams)) +
+  geom_point() +
+  geom_line(aes(y = predicted_streams), color = "blue") +
+  geom_ribbon(aes(ymin = conf_low, ymax = conf_high), alpha = 0.2) +
+  labs(title = "Model Fit with Confidence Interval",
+       y = "Streams", x = "Spotify Playlists") +
+  theme_minimal()
+```
+
+```{r}
+# Load required packages
+library(shiny)
+
+# Combine Visuals/Define UI
+ui <- fluidPage(
+  titlePanel("Predict Spotify Song Streams"),
+  tabsetPanel(
+    tabPanel("Visualize by Mode",
+      sidebarLayout(
+        sidebarPanel(
+          checkboxGroupInput("selected_modes", "Select Mode(s):",
+                             choices = unique(spotify$mode),
+                             selected = unique(spotify$mode))
+        ),
+        mainPanel(
+          plotOutput("modePlot")
+        )
+      )
+    ),
+    tabPanel("Predict Streams",
+      sidebarLayout(
+        sidebarPanel(
+          numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
+          numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
+          numericInput("apple", "Apple Playlists:", value = 2000, min = 0),
+          actionButton("predict", "Predict Streams")
+        ),
+        mainPanel(
+          h3("Predicted Streams:"),
+          verbatimTextOutput("prediction")
+        )
+      )
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+
+  # Reactive prediction
+  observeEvent(input$predict, {
+    new_input <- data.frame(
+      in_spotify_playlists = input$spotify,
+      in_deezer_playlists = input$deezer,
+      in_apple_playlists = input$apple
+    )
+
+    predicted <- predict(final_model, newdata = new_input)
+
+    output$prediction <- renderText({
+      format(round(predicted, 0), big.mark = ",")
+    })
+  })
+
+  output$modePlot <- renderPlot({
+    req(input$selected_modes)
+
+    filtered_data <- subset(spotify, mode %in% input$selected_modes)
+
+    ggplot(filtered_data, aes(x = streams, y = in_spotify_playlists, color = mode)) +
+      geom_point() +
+      labs(title = "Streams vs Playlist Metrics by Mode",
+           x = "Streams",
+           y = "Number in Spotify Playlists") +
+      theme_minimal()
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+```
+
+```{r}
+#single variable 
+ggplot(plot_data, aes(x = predicted_streams, y = in_spotify_playlists)) +
+  geom_point(aes(y = streams), alpha = 0.5) +
+  geom_line() +
+  geom_ribbon(aes(ymin = conf_low, ymax = conf_high), alpha = 0.2) +
+  labs(title = "Prediction with Confidence Intervals")
+```
+
+```{r}
+plot(lm_model)
+```
+
+```{r}
+plot(lm_model, which = 5) 
+```
+
+```{r}
+# Calculate Cook's Distance
+cooksD <- cooks.distance(lm_model)
+
+# Set a common threshold (4 / n)
+threshold <- 4 / nrow(data_complete)
+
+# Find influential points
+influential_points <- which(cooksD > threshold)
+ 
+influential_points
+```
+
+```{r}
+# Create a new dataset excluding influential rows
+data_no_influential <- data_complete[-influential_points, ]
+data_no_influential
+```
+
+```{r}
+# Refit the model using caret with cross-validation
+cv_model_clean <- train(
+  model_formula,
+  data = data_no_influential,
+  method = "lm",
+  trControl = trainControl(method = "cv", number = 10)
+)
+```
+
+```{r}
+cv_model$results  # Original model
+cv_model_clean$results  # Model without influential points
+```
+
+```{r}
+model_full <- lm(model_formula, data = data_complete)
+model_reduced <- lm(model_formula, data = data_no_influential)
+
+AIC(model_full, model_reduced)
+BIC(model_full, model_reduced)
+```
+
+```{r}
+# First, ensure that you have your predictions with intervals set up properly
+
+# Extract the linear model from caret's train object
+lm_model_clean <- cv_model_clean$finalModel
+
+# Generate predictions with both confidence and prediction intervals
+pred_conf_clean <- predict(lm_model_clean, newdata = data_no_influential, interval = "confidence")
+pred_pred_clean <- predict(lm_model_clean, newdata = data_no_influential, interval = "prediction")
+
+# Combine everything into a data frame
+plot_data_clean <- data_no_influential %>%
+  mutate(
+    predicted_streams = pred_conf_clean[, "fit"],
+    conf_low = pred_conf_clean[, "lwr"],
+    conf_high = pred_conf_clean[, "upr"],
+    pred_low = pred_pred_clean[, "lwr"],
+    pred_high = pred_pred_clean[, "upr"]
+  ) %>%
+  arrange(streams)  # sort by actual streams for smooth ribbons
+```
+
+```{r}
+# Plot with confidence and prediction intervals as lines (no shaded ribbons)
+ggplot(plot_data_clean, aes(x = predicted_streams, y = streams)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
+  geom_line(aes(y = conf_low), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = conf_high), color = "purple", linetype = "dashed") +
+  geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
+  geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
+  labs(
+    title = "Actual vs Predicted Streams with Confidence and Prediction Interval Lines",
+    x = "Predicted Streams",
+    y = "Actual Streams"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(fmsb)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Spotify Data Dashboard"),
+  
+  tabsetPanel(
+    tabPanel("Density: Release Year",
+             plotOutput("densityPlot")
+    ),
+    
+    tabPanel("Scatter: Streams vs Playlists by Mode",
+             sidebarLayout(
+               sidebarPanel(
+                 checkboxGroupInput("mode_select", "Select Mode(s):",
+                                    choices = unique(spotify$mode),
+                                    selected = unique(spotify$mode))
+               ),
+               mainPanel(
+                 plotOutput("scatterPlot")
+               )
+             )
+    ),
+    
+    tabPanel("Top 10 Streamed Songs by Year",
+             plotOutput("top10Bar")
+    ),
+    
+    tabPanel("Top 5 Songs by Year",
+             sidebarLayout(
+               sidebarPanel(
+                 selectInput("year", "Select Year:", choices = sort(unique(yearly_top_songs$released_year)))
+               ),
+               mainPanel(
+                 plotOutput("topSongsPlot")
+               )
+             )
+    ),
+    
+    tabPanel("Radar: Top 3 Songs Audio Features",
+             sidebarLayout(
+               sidebarPanel(
+                 selectInput("selected_year", "Choose a Year:",
+                             choices = sort(unique(spotify$released_year), decreasing = TRUE),
+                             selected = max(spotify$released_year, na.rm = TRUE))
+               ),
+               mainPanel(
+                 plotOutput("radarPlot")
+               )
+             )
+    ),
+    
+    tabPanel("Pairs Plot: Playlist Counts & Streams",
+             plotOutput("pairsPlot")
+    ),
+    
+    tabPanel("Actual vs Predicted Streams",
+             plotOutput("predictionPlot")
+    ),
+    
+    tabPanel("Predict Streams",
+             sidebarLayout(
+               sidebarPanel(
+                 numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
+                 numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
+                 numericInput("apple", "Apple Playlists:", value = 2000, min = 0),
+                 actionButton("predict", "Predict Streams")
+               ),
+               mainPanel(
+                 h3("Predicted Streams:"),
+                 verbatimTextOutput("prediction")
+               )
+             )
+    )
+  )
+)
+
+# Define Server
+server <- function(input, output, session) {
+  
+  # Density Plot ----
+  output$densityPlot <- renderPlot({
+    plot(density(spotify$released_year, na.rm = TRUE),
+         main = "Density Plot of Released Year",
+         xlab = "Released Year", col = "blue", lwd = 2)
+  })
+  
+  # Scatter Plot ----
+  output$scatterPlot <- renderPlot({
+    filtered_data <- spotify[spotify$mode %in% input$mode_select, ]
+    
+    ggplot(filtered_data, aes(x = streams, y = in_spotify_playlists, color = mode)) +
+      geom_point() +
+      labs(title = "Streams vs Playlist Metrics by Mode",
+           x = "Streams", y = "Number in Spotify Playlists") +
+      theme_minimal()
+  })
+  
+  # Top 10 Streamed Songs by Year ----
+  output$top10Bar <- renderPlot({
+    ggplot(top10_yearly, aes(x = factor(released_year), y = streams, fill = song.artist)) +
+      geom_bar(stat = "identity") +
+      labs(title = "Top 10 Streamed Songs By Year",
+           x = "Year", y = "Streams", fill = "Song - Artist") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+  
+  # Top 5 Songs per Year ----
+  output$topSongsPlot <- renderPlot({
+    selected_year_data <- yearly_top_songs %>%
+      filter(released_year == input$year)
+    
+    selected_year_data$track_name <- iconv(selected_year_data$track_name, from = "UTF-8", to = "UTF-8", sub = "*")
+    
+    ggplot(selected_year_data, aes(x = reorder(track_name, -streams), y = streams, fill = song.artist)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Top 5 Streamed Songs in", input$year),
+           x = "Song", y = "Streams", fill = "Song & Artist") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+  
+  # Radar Chart ----
+  radar_matrix3 <- reactive({
+    req(input$selected_year)
+    top3_year <- spotify %>%
+      filter(released_year == input$selected_year) %>%
+      slice_max(order_by = streams, n = 3, with_ties = FALSE) %>%
+      dplyr::rename(
+        danceability = `danceability_.`,
+        speechiness = `speechiness_.`,
+        energy = `energy_.`,
+        acousticness = `acousticness_.`
+      ) %>%
+      dplyr::select(song.artist, bpm, danceability, speechiness, energy, acousticness)
+    
+    radar_data_norm3 <- top3_year %>%
+      mutate(across(where(is.numeric), ~ rescale(.x, to = c(0, 1))))
+    
+    if (nrow(radar_data_norm3) < 1) return(NULL)
+    
+    max_min3 <- data.frame(
+      bpm = 1, danceability = 1, speechiness = 1, energy = 1, acousticness = 1,
+      row.names = c("Max")
+    ) %>%
+      bind_rows(data.frame(
+        bpm = 0, danceability = 0, speechiness = 0, energy = 0, acousticness = 0,
+        row.names = c("Min")
+      ))
+    
+    bind_rows(max_min3, radar_data_norm3 %>% column_to_rownames("song.artist"))
+  })
+  
+  output$radarPlot <- renderPlot({
+    matrix <- radar_matrix3()
+    req(matrix)
+    
+    colors_border <- rainbow(nrow(matrix) - 2)
+    colors_in <- adjustcolor(colors_border, alpha.f = 0.25)
+    
+    layout(matrix(c(1, 2), nrow = 2), heights = c(4, 1))
+    par(mar = c(2, 2, 4, 2))
+    radarchart(
+      matrix,
+      axistype = 1,
+      pcol = colors_border,
+      pfcol = colors_in,
+      plwd = 2,
+      plty = 1,
+      cglcol = "grey",
+      cglty = 1,
+      axislabcol = "grey",
+      caxislabels = seq(0, 1, 0.2),
+      cglwd = 0.8,
+      vlcex = 0.9,
+      title = paste("Top 3 Songs in", input$selected_year)
+    )
+    
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+    legend("center", legend = rownames(matrix)[-c(1, 2)],
+           bty = "n", pch = 20, col = colors_border, text.col = "black", cex = 0.9)
+  })
+  
+  # Pairs Plot ----
+  output$pairsPlot <- renderPlot({
+    selected_data <- dplyr::select(spotify, in_spotify_playlists, in_deezer_playlists, in_apple_playlists, streams)
+    pairs(selected_data, main = "Pairs Plot of Playlist Counts and Streams")
+  })
+  
+  # Actual vs Predicted Plot ----
+  output$predictionPlot <- renderPlot({
+    ggplot(plot_data, aes(x = predicted_streams, y = streams)) +
+      geom_point(alpha = 0.6, color = "darkblue") +
+      geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
+      geom_line(aes(y = conf_low), color = "purple", linetype = "dashed") +
+      geom_line(aes(y = conf_high), color = "purple", linetype = "dashed") +
+      geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
+      geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
+      labs(title = "Actual vs Predicted Streams",
+           x = "Predicted Streams", y = "Actual Streams") +
+      theme_minimal()
+  })
+  
+  # Predict Streams ----
+  observeEvent(input$predict, {
+    new_input <- data.frame(
+      in_spotify_playlists = input$spotify,
+      in_deezer_playlists = input$deezer,
+      in_apple_playlists = input$apple
+    )
+    
+    predicted <- predict(cv_model, newdata = new_input)
+    
+    output$prediction <- renderText({
+      format(round(predicted, 0), big.mark = ",")
+    })
+  })
+}
+
+# Run the App
+shinyApp(ui = ui, server = server)
+
+```
