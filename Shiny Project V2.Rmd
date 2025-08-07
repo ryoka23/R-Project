@@ -81,7 +81,10 @@ ggplot(spotify, aes(x = streams, y = in_spotify_playlists, color = mode)) +
 ```{r}
 library(shiny)
 library(ggplot2)
+```
 
+
+```{r}
 # UI
 ui <- fluidPage(
   titlePanel("Streams vs Spotify Playlists by Mode"),
@@ -924,7 +927,7 @@ ggplot(plot_data, aes(x = predicted_streams, y = streams)) +
   geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
   geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
   labs(
-    title = "Actual vs Predicted Streams with Confidence and Prediction Interval Lines",
+    title = "Actual vs Predicted Streams with Confidence and Prediction Interval Lines (R^2 = 0.68)",
     x = "Predicted Streams",
     y = "Actual Streams"
   ) +
@@ -1119,81 +1122,162 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(fmsb)
+```
+
+
+```{r}
 
 # Define UI
-ui <- fluidPage(
-  titlePanel("Spotify Data Dashboard"),
+ui <- navbarPage(
+  title = div(
+    img(src = "spotify_logo_black.png", height = "30px", style = "margin-top:-5px;"),
+    "Spotify Data Dashboard"
+  ),
+  id = "main_navbar",
+                 
+  # Custom styling
+  header = tags$head(
+    tags$style(HTML("
+      /* Navbar background */
+      .navbar-default {
+        background-color: #191414;
+        border-color: #191414;
+      }
+
+      /* Navbar title and tab text */
+      .navbar-default .navbar-brand,
+      .navbar-default .navbar-nav > li > a {
+        color: white !important;
+        font-weight: bold;
+      }
+
+      /* Active tab highlight */
+      .navbar-default .navbar-nav > .active > a,
+      .navbar-default .navbar-nav > .active > a:focus,
+      .navbar-default .navbar-nav > .active > a:hover {
+        background-color: #1DB954 !important;
+        color: black !important;
+      }
+
+      /* Tab content background */
+      .tab-pane {
+        background-color: #121212;
+        color: white;
+        padding: 30px;
+      }
+
+      /* Body background */
+      body {
+        background-color: #121212;
+        color: white;
+      }
+
+      /* List styling for better visibility */
+      ul {
+        color: white;
+      }
+    "))
+  ),
+
+# --- HOME TAB ---
+  tabPanel("Home",
+    fluidPage(
+      tags$div(
+        style = "text-align: center;",
+        img(src = "spotify_logo_green.png", height = "120px"),
+        h2("Welcome to the Spotify Data Dashboard"),
+        p("Dive into insights powered by Spotify song data."),
+        tags$ul(
+          tags$li("Explore trends across release years"),
+          tags$li("Discover top streamed tracks"),
+          tags$li("Visualize audio features with radar and density plots"),
+          tags$li("Compare playlists and stream predictions")
+        ),
+        p("Use the tabs above to explore the features.")
+      )
+    )
+  ),  
   
-  tabsetPanel(
-    tabPanel("Density: Release Year",
-             plotOutput("densityPlot")
-    ),
-    
-    tabPanel("Scatter: Streams vs Playlists by Mode",
-             sidebarLayout(
-               sidebarPanel(
-                 checkboxGroupInput("mode_select", "Select Mode(s):",
-                                    choices = unique(spotify$mode),
-                                    selected = unique(spotify$mode))
-               ),
-               mainPanel(
-                 plotOutput("scatterPlot")
-               )
-             )
-    ),
-    
-    tabPanel("Top 10 Streamed Songs by Year",
-             plotOutput("top10Bar")
-    ),
-    
-    tabPanel("Top 5 Songs by Year",
-             sidebarLayout(
-               sidebarPanel(
-                 selectInput("year", "Select Year:", choices = sort(unique(yearly_top_songs$released_year)))
-               ),
-               mainPanel(
-                 plotOutput("topSongsPlot")
-               )
-             )
-    ),
-    
-    tabPanel("Radar: Top 3 Songs Audio Features",
-             sidebarLayout(
-               sidebarPanel(
-                 selectInput("selected_year", "Choose a Year:",
-                             choices = sort(unique(spotify$released_year), decreasing = TRUE),
-                             selected = max(spotify$released_year, na.rm = TRUE))
-               ),
-               mainPanel(
-                 plotOutput("radarPlot")
-               )
-             )
-    ),
-    
-    tabPanel("Pairs Plot: Playlist Counts & Streams",
-             plotOutput("pairsPlot")
-    ),
-    
-    tabPanel("Actual vs Predicted Streams",
-             plotOutput("predictionPlot")
-    ),
-    
-    tabPanel("Predict Streams",
-             sidebarLayout(
-               sidebarPanel(
-                 numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
-                 numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
-                 numericInput("apple", "Apple Playlists:", value = 2000, min = 0),
-                 actionButton("predict", "Predict Streams")
-               ),
-               mainPanel(
-                 h3("Predicted Streams:"),
-                 verbatimTextOutput("prediction")
-               )
-             )
+  # Group: Release Year Performance
+  tabPanel("Release Year Performance",
+    tabsetPanel(
+      tabPanel("Density: Release Year",
+               plotOutput("densityPlot")
+      ),
+      tabPanel("Top 10 Streamed Songs by Year",
+               plotOutput("top10Bar")
+      ),
+      tabPanel("Top 5 Songs by Year",
+        sidebarLayout(
+          sidebarPanel(
+            selectInput("year", "Select Year:", choices = sort(unique(yearly_top_songs$released_year), decreasing = TRUE))
+          ),
+          mainPanel(
+            plotOutput("topSongsPlot")
+          )
+        )
+      )
+    )
+  ),
+
+   # Group: Audio Features
+  tabPanel("Radar: Top 3 Songs Audio Features",
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("selected_year", "Choose a Year:",
+                    choices = sort(unique(spotify$released_year), decreasing = TRUE),
+                    selected = max(spotify$released_year, na.rm = TRUE))
+      ),
+      mainPanel(
+        plotOutput("radarPlot")
+      )
+    )
+  ),
+  
+  # Group: Mode & Playlist Insights
+  tabPanel("Scatter: Streams vs Playlists by Mode",
+    sidebarLayout(
+      sidebarPanel(
+        checkboxGroupInput("mode_select", "Select Mode(s):",
+                           choices = unique(spotify$mode),
+                           selected = unique(spotify$mode))
+      ),
+      mainPanel(
+        plotOutput("scatterPlot")
+      )
+    )
+  ),
+
+
+  # Group: Playlist Metrics & Predictions
+  tabPanel("Playlists & Streams Relationship",
+    tabsetPanel(
+      tabPanel("Pairs Plot",
+               plotOutput("pairsPlot")
+      ),
+      tabPanel("Model Predictions",
+        fluidRow(
+          column(6,
+            h4("Predict Streams"),
+            numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
+            numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
+            numericInput("apple", "Apple Playlists:", value = 2000, min = 0),
+            actionButton("predict", "Predict Streams"),
+            br(), br(),
+            h5("Predicted Streams:"),
+            verbatimTextOutput("prediction")
+          ),
+          column(6,
+            h4("Actual vs Predicted Streams"),
+            plotOutput("predictionPlot")
+          )
+        )
+      )
     )
   )
 )
+
+
 
 # Define Server
 server <- function(input, output, session) {
@@ -1236,7 +1320,7 @@ server <- function(input, output, session) {
     ggplot(selected_year_data, aes(x = reorder(track_name, -streams), y = streams, fill = song.artist)) +
       geom_bar(stat = "identity") +
       labs(title = paste("Top 5 Streamed Songs in", input$year),
-           x = "Song", y = "Streams", fill = "Song & Artist") +
+           x = "Song", y = "Streams", fill = "Song - Artist") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
@@ -1318,7 +1402,7 @@ server <- function(input, output, session) {
       geom_line(aes(y = conf_high), color = "purple", linetype = "dashed") +
       geom_line(aes(y = pred_low), color = "red", linetype = "dotted") +
       geom_line(aes(y = pred_high), color = "red", linetype = "dotted") +
-      labs(title = "Actual vs Predicted Streams",
+      labs(title = "Actual vs Predicted Streams (R^2 = 0.68)",
            x = "Predicted Streams", y = "Actual Streams") +
       theme_minimal()
   })
@@ -1343,3 +1427,15 @@ server <- function(input, output, session) {
 shinyApp(ui = ui, server = server)
 
 ```
+```{r}
+ui <- fluidPage(
+  tags$h2("Home Page"),
+  img(src = "spotify_logo_green.png", height = "80px"),
+  p("Welcome to the Spotify Explorer App!")
+)
+
+server <- function(input, output, session) {}
+
+shinyApp(ui, server)
+```
+
