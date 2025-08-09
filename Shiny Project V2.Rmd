@@ -330,6 +330,8 @@ View(yearly_top3_songs)
 # Filter for 2023 top 3 songs from your previously filtered data
 top3_2023 <- yearly_top3_songs %>%
   filter(released_year == 2023)
+
+head(top3_2023)
 ```
 
 ```{r}
@@ -344,6 +346,9 @@ top3_2023_features <- top3_2023 %>%
     `acousticness_.`
   ) %>%
   pivot_longer(cols = -song.artist, names_to = "feature", values_to = "value")
+```
+```{r}
+head(top3_2023)
 ```
 
 ```{r}
@@ -1465,6 +1470,7 @@ output:
 
 img(src = "spotify_logo_black.png", height = "30px")
 ```
+
 ```{r}
 YAML
 ---
@@ -1535,7 +1541,7 @@ ui <- navbarPage(
         tags$ul(
           tags$li("Explore trends across release years"),
           tags$li("Discover top streamed tracks"),
-          tags$li("Visualize audio features with radar and density plots"),
+          tags$li("Visualize audio features with radar and scatter plots"),
           tags$li("Compare playlists and stream predictions")
         ),
         p("Use the tabs above to explore the features.")
@@ -1543,14 +1549,16 @@ ui <- navbarPage(
     )
   ),  
   
+
   # Group: Release Year Performance
   tabPanel("Release Year Performance",
     tabsetPanel(
       tabPanel("Density: Release Year",
                plotOutput("densityPlot")
       ),
-      tabPanel("Top 10 Streamed Songs by Year",
-               plotOutput("top10Bar")
+      tabPanel("Top 10 Overall - Top Streamed Song From Each Released Year",
+               plotOutput("top10Bar"),
+               p('Filtering for the top streamed from each released year and then displaying which songs ranked in top 10 by overall stream counts.')
       ),
       tabPanel("Top 5 Songs by Year",
         sidebarLayout(
@@ -1571,24 +1579,18 @@ ui <- navbarPage(
       sidebarPanel(
         selectInput("selected_year", "Choose a Year:",
                     choices = sort(unique(spotify$released_year), decreasing = TRUE),
-                    selected = max(spotify$released_year, na.rm = TRUE))
+                    selected = max(spotify$released_year, na.rm = TRUE)),
+        tags$ul(
+          style = "padding-left: 15px; margin-left: 0;", # Adjust padding as needed
+          tags$li("BPM - Beats per minute, tempo or speed of the song. "),
+          tags$li("Acousticness - Confidence measure of how much a track sounds like it was made with live instruments and natural sounds, rather than electronic or synthesized sounds. "),
+          tags$li("Energy - Encompasses a broader range of elements, including momentum, intensity, and emotional impact."),
+          tags$li("Speechiness - Measure of how much spoken word content is present in a track, as opposed to purely musical elements."),
+          tags$li("Danceability - Measure of how easily someone could move their body to the rhythm and structure of the music."),
+        )
       ),
       mainPanel(
         plotOutput("radarPlot")
-      )
-    )
-  ),
-  
-  # Group: Mode & Playlist Insights
-  tabPanel("Scatter: Streams vs Playlists by Mode",
-    sidebarLayout(
-      sidebarPanel(
-        checkboxGroupInput("mode_select", "Select Mode(s):",
-                           choices = unique(spotify$mode),
-                           selected = unique(spotify$mode))
-      ),
-      mainPanel(
-        plotOutput("scatterPlot")
       )
     )
   ),
@@ -1597,12 +1599,36 @@ ui <- navbarPage(
   # Group: Playlist Metrics & Predictions
   tabPanel("Playlists & Streams Relationship",
     tabsetPanel(
+    tabPanel("Scatter: Streams vs Playlists by Mode",
+    sidebarLayout(
+      sidebarPanel(
+        checkboxGroupInput("mode_select", "Select Mode(s):",
+                           choices = unique(spotify$mode),
+                           selected = unique(spotify$mode)),
+        tags$ul(
+          style = "padding-left: 15px; margin-left: 0;", # Adjust padding as needed
+          tags$li("Modes refer to two different types of musical scales and keys."),
+          tags$li("Major - Sounds bright, happy, and uplifting."),
+          tags$li("Minor - Sounds sad, melancholic, or dark."),
+        )
+      ),
+       
+      mainPanel(
+        plotOutput("scatterPlot"),
+      )
+    )
+  ),
+      
+      
       tabPanel("Pairs Plot",
-               plotOutput("pairsPlot")
+               plotOutput("pairsPlot"),
+               p('The pairs plot is showing the linear relationship between the number of streams to the number of playlists songs appear in. Spotify, Deezer, and Apple plalylist appearances had the most linear relationship to streams.')
       ),
       tabPanel("Model Predictions",
         fluidRow(
           column(6,
+            p('Input an estimate for the number of appearances in each of the playlists in order to predict the number of streams. The model is trained on this data to predict the number of total streams (2008-2024). 
+             '),
             h4("Predict Streams"),
             numericInput("spotify", "Spotify Playlists:", value = 5000, min = 0),
             numericInput("deezer", "Deezer Playlists:", value = 1000, min = 0),
@@ -1612,9 +1638,11 @@ ui <- navbarPage(
             h5("Predicted Streams:"),
             verbatimTextOutput("prediction")
           ),
+          
           column(6,
             h4("Actual vs Predicted Streams"),
-            plotOutput("predictionPlot")
+            plotOutput("predictionPlot"),
+             p('The linear model displayed is trained on streams in relation to Spotify, Deezer, and Apple playlist appearances. Using data from each song, it is plotting the actual stream numbers to the predicted value with confidence and predictive intervals.')
           )
         )
       )
@@ -1630,7 +1658,7 @@ server <- function(input, output, session) {
   # Density Plot ----
   output$densityPlot <- renderPlot({
     plot(density(spotify$released_year, na.rm = TRUE),
-         main = "Density Plot of Released Year",
+         main = "Density Plot of Song Counts by Released Year",
          xlab = "Released Year", col = "blue", lwd = 2)
   })
   
@@ -1649,7 +1677,7 @@ server <- function(input, output, session) {
   output$top10Bar <- renderPlot({
     ggplot(top10_yearly, aes(x = factor(released_year), y = streams, fill = song.artist)) +
       geom_bar(stat = "identity") +
-      labs(title = "Top 10 Streamed Songs By Year",
+      labs(title = "Top Streamed Song For Each Released Year: Top 10 Ranking Overall",
            x = "Year", y = "Streams", fill = "Song - Artist") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
