@@ -167,9 +167,9 @@ ggplot(top10_yearly, aes(x = released_year, y = streams, fill = factor(song.arti
 ```{r}
 ggplot(top10_yearly, aes(x = factor(released_year), y = streams, fill = song.artist)) +
   geom_bar(stat = "identity") +
-  labs(title = "Top 10 Streamed Songs By Year",
+  labs(title = "Top Streamed Song For Each Released Year: Top 10 Ranking Overall",
        x = "Year",
-       y = "Number of Streams",
+       y = "Streams",
        fill = "Song - Artist") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -194,8 +194,8 @@ ggplot(top_2023, aes(x = reorder(track_name, -streams), y = streams, fill = song
   geom_bar(stat = "identity") +
   labs(title = "Top 5 Streamed Songs in 2023",
        x = "Song",
-       y = "Number of Streams",
-       fill = "Song & Artist") +
+       y = "Streams",
+       fill = "Song - Artist") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
