@@ -1,0 +1,13 @@
+name: Spotify_Streaming_Data
+title: Spotify_Streaming_Data
+username: ryanoka
+account: ryanoka
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15232777
+bundleId: 10794743
+url: https://ryanoka.shinyapps.io/Spotify_Streaming_Data/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: Archive/Shiny Project.Rmd|README.md|Spotify Data Presentation.pptx

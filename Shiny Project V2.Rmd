@@ -1472,7 +1472,66 @@ img(src = "spotify_logo_black.png", height = "30px")
 ```
 
 ```{r}
-YAML
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(fmsb)
+library(rsconnect)
+library(caret)
+
+# 1. Load your data (if it's in a file)
+spotify <- read.csv("Popular_Spotify_Songs.csv") 
+
+# 2. Create your derived data frames (if you haven't saved them)
+yearly_top_songs <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 5, with_ties = TRUE) %>%
+  ungroup()
+
+yearly_top_song <- spotify %>%
+  group_by(released_year) %>%
+  slice_max(order_by = streams, n = 1, with_ties = TRUE) %>%
+  ungroup()
+
+# Step 1: Get the top 10 songs by total streams
+top10_yearly <- yearly_top_song %>% 
+  arrange(desc(streams)) %>% 
+  slice(1:10)
+
+# 3. Load or create your model 
+data_complete <- spotify %>%
+  select(streams, in_spotify_playlists, in_deezer_playlists, in_apple_playlists) %>%
+  na.omit()
+
+# Step 2: Set seed for reproducibility
+set.seed(123)
+
+# Step 3: Define training control for 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Step 4: Define the model formula (same predictors as before)
+model_formula <- streams ~ in_spotify_playlists + in_deezer_playlists + in_apple_playlists
+
+# Step 5: Fit the linear regression model using caret::train()
+cv_model <- train(
+  model_formula,
+  data = data_complete,
+  method = "lm",
+  trControl = train_control
+)
+
+# 4. Create the plot_data data frame
+# Example (this may need to be adjusted based on your actual data):
+# plot_data <- data.frame(
+#     streams = spotify$streams,
+#     predicted_streams = predict(cv_model, newdata = spotify),
+#     conf_low = 0, # Replace with actual values
+#     conf_high = 0, # Replace with actual values
+#     pred_low = 0, # Replace with actual values
+#     pred_high = 0 # Replace with actual values
+# )
+
 ---
 title: "Spotify Data Dashboard"
 output: html_document
@@ -1798,5 +1857,9 @@ server <- function(input, output, session) {
 
 # Run the App
 shinyApp(ui = ui, server = server)
+```
+```{r}
+#install.packages("rsconnect")
+library(rsconnect)
 ```
 
