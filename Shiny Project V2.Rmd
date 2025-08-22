@@ -1521,7 +1521,29 @@ cv_model <- train(
   trControl = train_control
 )
 
+# 3. Predict streams based on new inputs
+predicted_streams <- predict(cv_model, newdata = new_input)
+
 # 4. Create the plot_data data frame
+
+# Extract the linear model from caret's train object
+lm_model <- cv_model$finalModel
+
+# Generate predictions with both confidence and prediction intervals
+pred_conf <- predict(lm_model, newdata = data_complete, interval = "confidence")
+pred_pred <- predict(lm_model, newdata = data_complete, interval = "prediction")
+
+# Combine everything into a data frame
+plot_data <- data_complete %>%
+  mutate(
+    predicted_streams = pred_conf[, "fit"],
+    conf_low = pred_conf[, "lwr"],
+    conf_high = pred_conf[, "upr"],
+    pred_low = pred_pred[, "lwr"],
+    pred_high = pred_pred[, "upr"]
+  ) %>%
+  arrange(streams)  # sort by actual streams for smooth ribbons
+
 # Example (this may need to be adjusted based on your actual data):
 # plot_data <- data.frame(
 #     streams = spotify$streams,
@@ -1861,5 +1883,9 @@ shinyApp(ui = ui, server = server)
 ```{r}
 #install.packages("rsconnect")
 library(rsconnect)
+```
+
+```{r}
+View(spotify)
 ```
 
