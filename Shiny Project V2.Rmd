@@ -1888,4 +1888,7 @@ library(rsconnect)
 ```{r}
 View(spotify)
 ```
+```{r}
+View(yearly_top_songs)
+```
 

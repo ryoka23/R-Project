@@ -7,10 +7,24 @@ library(rsconnect)
 library(caret)
 library(tibble)
 library(tidyr)
+library(stringi)
 shiny::addResourcePath("www", "www")
 
 # 1. Load your data (if it's in a file)
-spotify <- read.csv("Popular_Spotify_Songs.csv") 
+
+spotify <- read.csv("Popular_Spotify_Songs.csv")
+
+# Clean all character columns to remove non-ASCII characters
+spotify <- as.data.frame(
+  lapply(spotify, function(x) {
+    if (is.character(x)) {
+      x <- iconv(x, from = "UTF-8", to = "ASCII", sub = "")
+    }
+    return(x)
+  }),
+  stringsAsFactors = FALSE
+)
+
 spotify$streams <- as.numeric(spotify$streams)
 spotify$in_deezer_playlists = as.numeric(spotify$in_deezer_playlists)
 spotify$in_shazam_charts = as.numeric(spotify$in_shazam_charts)
@@ -295,7 +309,6 @@ server <- function(input, output, session) {
     selected_year_data <- yearly_top_songs %>%
       filter(released_year == input$year)
     
-    selected_year_data$track_name <- iconv(selected_year_data$track_name, from = "UTF-8", to = "UTF-8", sub = "*")
     
     ggplot(selected_year_data, aes(x = reorder(track_name, -streams), y = streams, fill = song.artist)) +
       geom_bar(stat = "identity") +
@@ -405,3 +418,6 @@ server <- function(input, output, session) {
 
 # Run the App
 shinyApp(ui = ui, server = server)
+
+
+
